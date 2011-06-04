@@ -1,19 +1,24 @@
 (ns cljd.server
   (:use [net.tcp.server :only (tcp-server wrap-io start)])
-  (:import java.io.PushbackReader))
+  (:require [clj-json.core :as json]))
 
-(defn wrap-clojure [handler]
+(defn wrap-json [handler & [keywords]]
   (wrap-io
    (fn [reader writer]
-     (binding [*in* (PushbackReader. reader), *out* writer]
-       (handler)))))
+     (letfn [(write [data]
+               (doto writer
+                 (.append (json/generate-string data))
+                 (.append "\n")
+                 (.flush)))]
+       (doseq [input (json/parsed-seq reader)]
+         (handler input write))))))
 
-(defn handler []
-  (prn (read)))
+(defn handler [input write]
+  (write input))
 
 (def server
   (tcp-server
-   :handler (wrap-clojure handler)
+   :handler (wrap-json handler)
    :host "127.0.0.1"
    :port 8000))
 
