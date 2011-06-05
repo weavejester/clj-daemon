@@ -21,10 +21,14 @@
        (handler read write)))))
 
 (defn handler [read write]
-  (let [setup  (read)
-        source (-> setup :source read-string)
-        return (eval source)]
-    (write {:return (pr-str return)})))
+  (try
+    (let [setup  (read)
+          source (-> setup :source read-string)
+          return (eval source)]
+      (write {:return (pr-str return)}))
+    (catch Exception e
+      (write {:exception (.getName (class e))
+              :message   (.getMessage e)}))))
 
 (def server
   (tcp-server
