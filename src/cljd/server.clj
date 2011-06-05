@@ -7,10 +7,10 @@
      ~@forms
      return#))
 
-(defn wrap-json [handler & [keywords]]
+(defn wrap-json [handler & [keywords?]]
   (wrap-io
    (fn [reader writer]
-     (let [input (ref (json/parsed-seq reader))
+     (let [input (ref (json/parsed-seq reader keywords?))
            read  #(dosync
                     (tap (first @input)
                          (alter input rest)))
@@ -21,11 +21,14 @@
        (handler read write)))))
 
 (defn handler [read write]
-  (write (read)))
+  (let [setup  (read)
+        source (-> setup :source read-string)
+        return (eval source)]
+    (write {:return (pr-str return)})))
 
 (def server
   (tcp-server
-   :handler (wrap-json handler)
+   :handler (wrap-json handler true)
    :host "127.0.0.1"
    :port 8000))
 
