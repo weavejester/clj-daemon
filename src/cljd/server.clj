@@ -2,19 +2,26 @@
   (:use [net.tcp.server :only (tcp-server wrap-io start)])
   (:require [clj-json.core :as json]))
 
+(defmacro tap [return & forms]
+  `(let [return# ~return]
+     ~@forms
+     return#))
+
 (defn wrap-json [handler & [keywords]]
   (wrap-io
    (fn [reader writer]
-     (letfn [(write [data]
-               (doto writer
-                 (.append (json/generate-string data))
-                 (.append "\n")
-                 (.flush)))]
-       (doseq [input (json/parsed-seq reader)]
-         (handler input write))))))
+     (let [input (ref (json/parsed-seq reader))
+           read  #(dosync
+                    (tap (first @input)
+                         (alter input rest)))
+           write #(doto writer
+                    (.append (json/generate-string %))
+                    (.append "\n")
+                    (.flush))]
+       (handler read write)))))
 
-(defn handler [input write]
-  (write input))
+(defn handler [read write]
+  (write (read)))
 
 (def server
   (tcp-server
