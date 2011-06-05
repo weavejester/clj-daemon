@@ -1,4 +1,4 @@
-(ns cljd.server
+(ns clj-daemon.server
   (:use [net.tcp.server :only (tcp-server wrap-io start)])
   (:require [clj-json.core :as json]))
 

@@ -1,4 +1,4 @@
-# cljd
+# clj-daemon
 
 FIXME: write description
 
