@@ -1,5 +1,6 @@
 (ns clj-daemon.server
-  (:use [net.tcp.server :only (tcp-server wrap-io start)])
+  (:use [net.tcp.server :only (tcp-server wrap-io start)]
+        [clj-daemon.classloader :only (url-classloader eval-string)])
   (:require [clj-json.core :as json]))
 
 (defmacro tap [return & forms]
@@ -20,15 +21,23 @@
                     (.flush))]
        (handler read write)))))
 
+(defmacro catch-exceptions [write & body]
+  `(try ~@body
+        (catch Exception e#
+          (~write {:exception (.getName (class e#))
+                   :message   (.getMessage e#)}))))
+
+(defn create-classloader [data]
+  (apply url-classloader (:classpath data)))
+
 (defn handler [read write]
-  (try
-    (let [setup  (read)
-          source (-> setup :source read-string)
-          return (eval source)]
-      (write {:return (pr-str return)}))
-    (catch Exception e
-      (write {:exception (.getName (class e))
-              :message   (.getMessage e)}))))
+  (catch-exceptions write
+    (let [loader (create-classloader (read))]
+      (loop [data (read)]
+        (catch-exceptions write
+          (let [source (:source data)]
+            (write {:return (eval-string loader source)})
+            (recur (read))))))))
 
 (def server
   (tcp-server
