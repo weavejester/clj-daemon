@@ -27,12 +27,14 @@
           (~write {:exception (.getName (class e#))
                    :message   (.getMessage e#)}))))
 
-(defn create-classloader [data]
-  (apply url-classloader (:classpath data)))
+(def create-classloader
+  (memoize
+   (fn [paths]
+     (apply url-classloader paths))))
 
 (defn handler [read write]
   (catch-exceptions write
-    (let [loader (create-classloader (read))]
+    (let [loader (create-classloader (:classpath (read)))]
       (loop [data (read)]
         (catch-exceptions write
           (let [source (:source data)]
