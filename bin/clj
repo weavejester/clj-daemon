@@ -2,6 +2,7 @@
 import json
 import socket
 import os
+import sys
 import errno
 import optparse
 import random
@@ -20,6 +21,15 @@ def random_string(length):
     alphabet = string.letters[0:52] + string.digits
     return "".join(rng.choice(alphabet) for _ in range(length))
 
+def pid_exists(pid):
+    try: os.kill(pid, 0)
+    except OSError: return False
+    else: return True
+
+def read_pid(filepath):
+    try: return int(open(filepath).read().strip())
+    except IOError: return None
+
 ## Make sure config file exists
 
 config_dir = os.path.join(os.environ['HOME'], ".clj")
@@ -32,6 +42,26 @@ if not os.path.exists(config_file):
     f  = os.fdopen(fd)
     json.dump({"password": random_string(32)}, f)
     f.close()
+
+## Start server process if it doesn't already exist
+
+server_jar = "clj-daemon-1.0.0-SNAPSHOT-standalone.jar"
+
+pid_file   = os.path.join(config_dir, "daemon.pid")
+server_pid = read_pid(pid_file)
+
+if not server_pid or not pid_exists(server_pid):
+    server_pid = os.fork()
+    if server_pid > 0:
+        open(pid_file, "w").write(str(server_pid))
+    else:
+        sys.stdin.close()
+        sys.stdout.close()
+        sys.stderr.close()
+        os.execlp("java", "java", "-jar", server_jar, config_file)
+
+    import time
+    time.sleep(5)
 
 ## Parse options from command-line
 
