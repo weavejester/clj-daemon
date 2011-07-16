@@ -1,20 +1,16 @@
 (ns clj-daemon.server
-  (:use [net.tcp.server :only (tcp-server wrap-io start running?)]
+  (:use [net.tcp.server :only (tcp-server wrap-io)]
         [clj-daemon.classloader :only (url-classloader eval-string)])
   (:require [clj-json.core :as json]))
-
-(defmacro tap [return & forms]
-  `(let [return# ~return]
-     ~@forms
-     return#))
 
 (defn wrap-json [handler & [keywords?]]
   (wrap-io
    (fn [reader writer]
      (let [input (ref (json/parsed-seq reader keywords?))
            read  #(dosync
-                    (tap (first @input)
-                         (alter input rest)))
+                    (let [data (first @input)]
+                      (alter input rest)
+                      data))
            write #(doto writer
                     (.append (json/generate-string %))
                     (.append "\n")
@@ -46,8 +42,3 @@
    :handler (wrap-json handler true)
    :host "127.0.0.1"
    :port 8000))
-
-(defn -main []
-  (start server)
-  (while (running? server)
-    (Thread/sleep 1000)))
