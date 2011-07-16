@@ -1,8 +1,39 @@
 #!/usr/bin/env python
 import json
 import socket
-import os.path
+import os
+import errno
 import optparse
+import random
+import string
+
+## Utility functions
+
+def mkpath(path):
+    try: os.makedirs(path)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST: pass
+        else: raise
+
+def random_string(length):
+    rng = random.SystemRandom()
+    alphabet = string.letters[0:52] + string.digits
+    return "".join(rng.choice(alphabet) for _ in range(length))
+
+## Make sure config file exists
+
+config_dir = os.path.join(os.environ['HOME'], ".clj")
+mkpath(config_dir)
+
+config_file = os.path.join(config_dir, "config.json")
+
+if not os.path.exists(config_file):
+    fd = os.open(config_file, os.O_WRONLY & os.O_CREAT, 0600)
+    f  = os.fdopen(fd)
+    json.dump({"password": random_string(32)}, f)
+    f.close()
+
+## Parse options from command-line
 
 parser = optparse.OptionParser()
 parser.add_option(
@@ -15,6 +46,8 @@ parser.add_option(
 (opts, args) = parser.parse_args()
 
 classpath = ["file://" + os.path.abspath(p) for p in opts.classpath.split(':')]
+
+## Send commands to server
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect(('localhost', 8000))
