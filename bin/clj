@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+import json
+import socket
+import os.path
+
+classpath = ["lib/clojure-1.2.1.jar"]
+cp_urls = ["file://" + os.path.abspath(p) for p in classpath]
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect(('localhost', 8000))
+sock.send(json.dumps({"classpath": cp_urls}))
+sock.send(json.dumps({"source": "(+ 1 1)"}))
+data = json.loads(sock.recv(1024))
+sock.close()
+
+print data['return']
