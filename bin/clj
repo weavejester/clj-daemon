@@ -2,14 +2,24 @@
 import json
 import socket
 import os.path
+import optparse
 
-classpath = ["lib/clojure-1.2.1.jar"]
-cp_urls = ["file://" + os.path.abspath(p) for p in classpath]
+parser = optparse.OptionParser()
+parser.add_option(
+    "-e", "--eval", dest="source",
+    help="evaluate the Clojure FORM", metavar="FORM")
+parser.add_option(
+    "-c", "--classpath", dest="classpath",
+    help="use the supplied CLASSPATH", metavar="CLASSPATH")
+
+(opts, args) = parser.parse_args()
+
+classpath = ["file://" + os.path.abspath(p) for p in opts.classpath.split(':')]
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect(('localhost', 8000))
-sock.send(json.dumps({"classpath": cp_urls}))
-sock.send(json.dumps({"source": "(+ 1 1)"}))
+sock.send(json.dumps({"classpath": classpath}))
+sock.send(json.dumps({"source": opts.source}))
 data = json.loads(sock.recv(1024))
 sock.close()
 
