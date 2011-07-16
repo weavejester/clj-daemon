@@ -7,6 +7,7 @@ import errno
 import optparse
 import random
 import string
+import time
 
 ## Utility functions
 
@@ -29,6 +30,16 @@ def pid_exists(pid):
 def read_pid(filepath):
     try: return int(open(filepath).read().strip())
     except IOError: return None
+
+def try_connect(sock, address, timeout = 15):
+    end_time = time.time() + timeout
+    while time.time() < end_time:
+        exception = None
+        try: sock.connect(address)
+        except Exception, e: exception = e
+        else: break
+        time.sleep(0.5)
+    if exception: raise exception
 
 ## Make sure config file exists
 
@@ -60,9 +71,6 @@ if not server_pid or not pid_exists(server_pid):
         sys.stderr.close()
         os.execlp("java", "java", "-jar", server_jar, config_file)
 
-    import time
-    time.sleep(5)
-
 ## Parse options from command-line
 
 parser = optparse.OptionParser()
@@ -80,10 +88,13 @@ classpath = ["file://" + os.path.abspath(p) for p in opts.classpath.split(':')]
 ## Send commands to server
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('localhost', 8000))
+try_connect(sock, ('localhost', 8000))
+
 sock.send(json.dumps({"classpath": classpath}))
 sock.send(json.dumps({"source": opts.source}))
+
 data = json.loads(sock.recv(1024))
+
 sock.close()
 
 print data['return']
