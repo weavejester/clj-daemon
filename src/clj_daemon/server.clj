@@ -1,5 +1,5 @@
 (ns clj-daemon.server
-  (:use [net.tcp.server :only (tcp-server wrap-io start)]
+  (:use [net.tcp.server :only (tcp-server wrap-io start running?)]
         [clj-daemon.classloader :only (url-classloader eval-string)])
   (:require [clj-json.core :as json]))
 
@@ -32,14 +32,14 @@
    (fn [paths]
      (apply url-classloader paths))))
 
-(defn handler [read write]
+(defn handler [read-data write]
   (catch-exceptions write
-    (let [loader (create-classloader (:classpath (read)))]
-      (loop [data (read)]
+    (let [loader (create-classloader (:classpath (read-data)))]
+      (loop [data (read-data)]
         (catch-exceptions write
           (let [source (:source data)]
             (write {:return (eval-string loader source)})
-            (recur (read))))))))
+            (recur (read-data))))))))
 
 (def server
   (tcp-server
@@ -48,4 +48,6 @@
    :port 8000))
 
 (defn -main []
-  (start server))
+  (start server)
+  (while (running? server)
+    (Thread/sleep 1000)))
