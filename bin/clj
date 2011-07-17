@@ -11,8 +11,8 @@ import time
 
 def mkpath(path):
     try: os.makedirs(path)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST: pass
+    except OSError as e:
+        if e.errno == errno.EEXIST: pass
         else: raise
 
 def random_string(length):
@@ -63,6 +63,9 @@ def start_daemon(command, pid_file):
         sys.stderr.close()
         os.execvp(command[0], command)
 
+def file_url(path):
+    return "file://" + os.path.abspath(path)
+
 ## Make sure config file exists
 
 config_dir  = os.path.join(os.environ['HOME'], ".clj")
@@ -91,7 +94,7 @@ parser.add_option(
 
 (opts, args) = parser.parse_args()
 
-classpath = ["file://" + os.path.abspath(p) for p in opts.classpath.split(':')]
+classpath = map(file_url, opts.classpath.split(':'))
 
 ## Send commands to server
 
